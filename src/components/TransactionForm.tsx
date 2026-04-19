@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useBudgetStore } from '../store/useBudgetStore';
 
 type FormType = 'INCOME' | 'TRANSFER' | 'EXPENSE';

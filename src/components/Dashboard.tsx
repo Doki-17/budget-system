@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useBudgetStore, type Expense, type BankName, type ExpenseType, type FrequencyType, type PriorityLevel } from '../store/useBudgetStore';
 
 interface StatCardProps {

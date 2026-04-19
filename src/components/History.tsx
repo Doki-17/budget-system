@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useBudgetStore, type AuditLog } from '../store/useBudgetStore';
 
 function BreakdownDetails({ log }: { log: AuditLog }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   if (!log.breakdown?.length) return null;
   return (
     <div className="mt-3">
