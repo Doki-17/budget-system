@@ -1,8 +1,9 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 
 :root {
   font-family: Inter, system-ui, 'Segoe UI', sans-serif;
-  color-scheme: light;
+  color-scheme: light dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -13,4 +14,5 @@
 
 body {
   margin: 0;
+  @apply bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100;
 }
