@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useBudgetStore, type Expense, type BankName, type ExpenseType, type FrequencyType, type PriorityLevel } from '../store/useBudgetStore';
+import { useBudgetStore, type Expense, type BankName, type ExpenseType, type PriorityLevel } from '../store/useBudgetStore';
 
 interface StatCardProps {
   exp: Expense;
@@ -84,8 +84,7 @@ export default function Dashboard() {
   const [name, setName] = useState('');
   const [bank, setBank] = useState<BankName>(categories.banks?.[0] || 'GCash');
   const [type, setType] = useState<ExpenseType>('variable');
-  const [frequency, setFrequency] = useState<FrequencyType>('per-income');
-  const [priority, setPriority] = useState<PriorityLevel>('Medium');
+const [priority, setPriority] = useState<PriorityLevel>('Medium');
   const [val, setVal] = useState<string>('');
 
   const totalBalance = Object.entries(balances).filter(([key]) => key !== 'unallocated').reduce((sum, [_, val]) => sum + Number(val), 0);
@@ -108,9 +107,9 @@ export default function Dashboard() {
 
   const openModal = (item?: Expense) => {
     if (item) {
-      setEditItem(item); setName(item.name); setBank(item.bank); setType(item.type); setFrequency(item.frequency); setPriority(item.priority || 'Medium'); setVal(item.type === 'fixed' ? String(item.amount || '') : String(item.percentage || ''));
+      setEditItem(item); setName(item.name); setBank(item.bank); setType(item.type); setPriority(item.priority || 'Medium'); setVal(item.type === 'fixed' ? String(item.amount || '') : String(item.percentage || ''));
     } else {
-      setEditItem(null); setName(''); setBank(categories.banks?.[0] || 'GCash'); setType('variable'); setFrequency('per-income'); setPriority('Medium'); setVal('');
+      setEditItem(null); setName(''); setBank(categories.banks?.[0] || 'GCash'); setType('variable'); setPriority('Medium'); setVal('');
     }
     setIsModalOpen(true);
   };
