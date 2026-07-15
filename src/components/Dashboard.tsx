@@ -28,9 +28,9 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
   return (
     <div className="group relative bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:shadow-none hover:shadow-lg dark:hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.2)] transition-all duration-300 border border-slate-100 dark:border-slate-700/60 flex flex-col">
       <div className="h-2 bg-teal-500 w-full" />
-      <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(exp)} className="px-3 py-1.5 text-[11px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 hover:text-teal-600 dark:hover:text-teal-400 shadow-sm transition-all focus:opacity-100">EDIT</button>
-        <button onClick={() => { if (window.confirm(`Delete ${exp.name}?`)) onDelete(exp.id) }} className="px-3 py-1.5 text-[11px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:border-rose-200 dark:hover:border-rose-800/80 hover:text-rose-600 dark:hover:text-rose-400 shadow-sm transition-all focus:opacity-100">DEL</button>
+      <div className="absolute top-4 right-4 flex gap-1.5">
+        <button onClick={() => onEdit(exp)} className="px-3 py-1.5 text-[11px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 hover:text-teal-600 dark:hover:text-teal-400 shadow-sm transition-all">EDIT</button>
+        <button onClick={() => { if (window.confirm(`Delete ${exp.name}?`)) onDelete(exp.id) }} className="px-3 py-1.5 text-[11px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:border-rose-200 dark:hover:border-rose-800/80 hover:text-rose-600 dark:hover:text-rose-400 shadow-sm transition-all">DEL</button>
       </div>
 
       <div className="p-6 flex-1 flex flex-col gap-4">
@@ -65,7 +65,9 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
             ) : (
               <button
                 onClick={() => { if (window.confirm(`Mark ₱${exp.amount?.toLocaleString()} as paid for ${currentMonthName}?`)) onMarkPaid(exp.id, currentMonthKey) }}
-                className="text-[11px] font-bold text-white bg-teal-600 hover:bg-teal-500 dark:bg-teal-600 dark:hover:bg-teal-500 px-3 py-1.5 rounded-lg shadow-sm shadow-teal-500/20 dark:shadow-none transition-all"
+                disabled={balance < (exp.amount || 0)}
+                title={balance < (exp.amount || 0) ? `Need ₱${((exp.amount || 0) - balance).toLocaleString()} more to pay` : undefined}
+                className="text-[11px] font-bold text-white bg-teal-600 hover:bg-teal-500 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg shadow-sm shadow-teal-500/20 dark:shadow-none transition-all"
               >
                 Pay for {currentMonthName}
               </button>
