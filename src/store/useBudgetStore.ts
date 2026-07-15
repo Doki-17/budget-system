@@ -232,7 +232,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         return 0;
       });
 
-    // Pass 1: Fixed expenses deducted first from full income
+    // Pass 1: Fixed expenses — each income log funds half the monthly amount (2 logs = full)
     const afterFixed = sortedExpensesToProcess.map((exp) => {
       if (exp.type !== 'fixed') return exp;
       if (!forceIncludePaidFixed && exp.frequency === 'monthly' && exp.lastAllocatedMonth === currentMonth) return exp;
@@ -241,7 +241,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       let newlyAllocatedMonth = exp.lastAllocatedMonth;
 
       if (exp.amount !== undefined) {
-        deduction = exp.amount;
+        deduction = Math.round((exp.amount / 2) * 100) / 100;
         newlyAllocatedMonth = exp.frequency === 'monthly' ? currentMonth : exp.lastAllocatedMonth;
       }
 
@@ -255,10 +255,19 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       return { ...exp, lastAllocatedMonth: newlyAllocatedMonth };
     });
 
-    // Snapshot remaining after fixed — this is the base for variable percentages
-    const baseForVariable = remainingBalance;
+    // Snap to 2 decimal places to eliminate float drift before variable pass
+    const baseForVariable = Math.round(remainingBalance * 100) / 100;
+    remainingBalance = baseForVariable;
 
-    // Pass 2: Variable expenses use remaining-after-fixed as percentage base
+    // Find the last eligible variable expense — it absorbs any rounding remainder
+    const lastEligibleVariableId = [...sortedExpensesToProcess]
+      .filter(exp =>
+        exp.type === 'variable' &&
+        !((!forceIncludePaidFixed) && exp.frequency === 'monthly' && exp.lastAllocatedMonth === currentMonth)
+      )
+      .pop()?.id;
+
+    // Pass 2: Variable expenses use baseForVariable as percentage base; last gets exact remainder
     const processedExpenses = afterFixed.map((exp) => {
       if (exp.type !== 'variable') return exp;
       if (!forceIncludePaidFixed && exp.frequency === 'monthly' && exp.lastAllocatedMonth === currentMonth) return exp;
@@ -266,7 +275,9 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       let deduction = 0;
 
       if (exp.percentage !== undefined) {
-        deduction = baseForVariable * (exp.percentage / 100);
+        deduction = exp.id === lastEligibleVariableId
+          ? Math.round(remainingBalance * 100) / 100
+          : Math.round(baseForVariable * (exp.percentage / 100) * 100) / 100;
       }
 
       if (deduction > remainingBalance) deduction = remainingBalance;
