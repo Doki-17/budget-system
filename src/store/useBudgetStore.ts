@@ -232,17 +232,17 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         return 0;
       });
 
-    const processedExpenses = sortedExpensesToProcess.map((exp) => {
+    // Pass 1: Fixed expenses deducted first from full income
+    const afterFixed = sortedExpensesToProcess.map((exp) => {
+      if (exp.type !== 'fixed') return exp;
       if (!forceIncludePaidFixed && exp.frequency === 'monthly' && exp.lastAllocatedMonth === currentMonth) return exp;
 
       let deduction = 0;
       let newlyAllocatedMonth = exp.lastAllocatedMonth;
 
-      if (exp.type === 'fixed' && exp.amount !== undefined) {
+      if (exp.amount !== undefined) {
         deduction = exp.amount;
         newlyAllocatedMonth = exp.frequency === 'monthly' ? currentMonth : exp.lastAllocatedMonth;
-      } else if (exp.type === 'variable' && exp.percentage !== undefined) {
-        deduction = incomeAmount * (exp.percentage / 100);
       }
 
       if (deduction > remainingBalance) deduction = remainingBalance;
@@ -253,6 +253,30 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         distributionLog.push({ name: exp.name, amount: deduction, bank: exp.bank });
       }
       return { ...exp, lastAllocatedMonth: newlyAllocatedMonth };
+    });
+
+    // Snapshot remaining after fixed — this is the base for variable percentages
+    const baseForVariable = remainingBalance;
+
+    // Pass 2: Variable expenses use remaining-after-fixed as percentage base
+    const processedExpenses = afterFixed.map((exp) => {
+      if (exp.type !== 'variable') return exp;
+      if (!forceIncludePaidFixed && exp.frequency === 'monthly' && exp.lastAllocatedMonth === currentMonth) return exp;
+
+      let deduction = 0;
+
+      if (exp.percentage !== undefined) {
+        deduction = baseForVariable * (exp.percentage / 100);
+      }
+
+      if (deduction > remainingBalance) deduction = remainingBalance;
+
+      if (deduction > 0) {
+        remainingBalance -= deduction;
+        newBalances[exp.id] = (newBalances[exp.id] ?? 0) + deduction;
+        distributionLog.push({ name: exp.name, amount: deduction, bank: exp.bank });
+      }
+      return exp;
     });
 
     if (remainingBalance > 0) {
