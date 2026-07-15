@@ -241,7 +241,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       let newlyAllocatedMonth = exp.lastAllocatedMonth;
 
       if (exp.amount !== undefined) {
-        deduction = Math.round((exp.amount / 2) * 100) / 100;
+        deduction = Math.round(exp.amount / 2);
         newlyAllocatedMonth = exp.frequency === 'monthly' ? currentMonth : exp.lastAllocatedMonth;
       }
 
@@ -255,8 +255,8 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       return { ...exp, lastAllocatedMonth: newlyAllocatedMonth };
     });
 
-    // Snap to 2 decimal places to eliminate float drift before variable pass
-    const baseForVariable = Math.round(remainingBalance * 100) / 100;
+    // Snap to whole number to eliminate float drift before variable pass
+    const baseForVariable = Math.round(remainingBalance);
     remainingBalance = baseForVariable;
 
     // Find the last eligible variable expense — it absorbs any rounding remainder
@@ -276,8 +276,8 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
       if (exp.percentage !== undefined) {
         deduction = exp.id === lastEligibleVariableId
-          ? Math.round(remainingBalance * 100) / 100
-          : Math.round(baseForVariable * (exp.percentage / 100) * 100) / 100;
+          ? Math.round(remainingBalance)
+          : Math.round(baseForVariable * (exp.percentage / 100));
       }
 
       if (deduction > remainingBalance) deduction = remainingBalance;

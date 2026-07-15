@@ -16,8 +16,8 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const currentMonthName = new Date().toLocaleString('default', { month: 'short' });
 
-  const isFixedMonthly = exp.type === 'fixed' && exp.frequency === 'monthly';
-  const isPaidThisMonth = isFixedMonthly && exp.paidMonths?.includes(currentMonthKey);
+  const isFixed = exp.type === 'fixed';
+  const isPaidThisMonth = isFixed && (exp.paidMonths || []).includes(currentMonthKey);
 
   const priorityColors = {
     High: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/50',
@@ -53,7 +53,7 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
           {/* DYNAMIC FOOTER BASED ON TYPE */}
           {exp.type === 'variable' && exp.percentage !== undefined ? (
             <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2.5 py-1 rounded-md">Gets {exp.percentage}%</span>
-          ) : isFixedMonthly ? (
+          ) : isFixed ? (
             isPaidThisMonth ? (
               <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 px-2.5 py-1 rounded-md flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -61,10 +61,10 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
               </span>
             ) : (
               <button
-                onClick={() => { if (window.confirm(`Mark ₱${exp.amount} as paid for ${currentMonthName}?`)) onMarkPaid(exp.id, currentMonthKey) }}
+                onClick={() => { if (window.confirm(`Mark ₱${exp.amount?.toLocaleString()} as paid for ${currentMonthName}?`)) onMarkPaid(exp.id, currentMonthKey) }}
                 className="text-[11px] font-bold text-white bg-teal-600 hover:bg-teal-500 dark:bg-teal-600 dark:hover:bg-teal-500 px-3 py-1.5 rounded-lg shadow-sm shadow-teal-500/20 dark:shadow-none transition-all"
               >
-                Pay {currentMonthName} Bill
+                Pay for {currentMonthName}
               </button>
             )
           ) : exp.amount !== undefined ? (
@@ -120,7 +120,7 @@ export default function Dashboard() {
     if (type === 'variable' && isOverBudget) return alert("Exceeds 100%!");
     const numVal = parseFloat(val);
     const payload: Expense = {
-      id: editItem ? editItem.id : `cat_${Date.now()}`, name, type, bank, frequency, priority, lastAllocatedMonth: editItem ? editItem.lastAllocatedMonth : null, paidMonths: editItem ? editItem.paidMonths : [], amount: type === 'fixed' ? numVal : undefined, percentage: type === 'variable' ? numVal : undefined,
+      id: editItem ? editItem.id : `cat_${Date.now()}`, name, type, bank, frequency: type === 'fixed' ? 'monthly' : 'per-income', priority, lastAllocatedMonth: editItem ? editItem.lastAllocatedMonth : null, paidMonths: editItem ? editItem.paidMonths : [], amount: type === 'fixed' ? numVal : undefined, percentage: type === 'variable' ? numVal : undefined,
     };
     editItem ? updateExpense(editItem.id, payload) : addExpense(payload);
     setIsModalOpen(false);
@@ -246,13 +246,12 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">When do we deduct?</label>
-                <select value={frequency} onChange={(e) => setFrequency(e.target.value as FrequencyType)} className="w-full p-3.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 border text-sm border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 dark:focus:border-teal-500 outline-none font-medium text-slate-800 dark:text-slate-100 transition-all box-border">
-                  <option value="per-income">Every time income arrives</option>
-                  <option value="monthly">Only once a month</option>
-                </select>
-              </div>
+              {type === 'fixed' && (
+                <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 flex items-start gap-2.5">
+                  <svg className="w-4 h-4 mt-0.5 shrink-0 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 leading-relaxed">Half of the set amount is automatically funded into this envelope each time you log income. Hit <strong>Pay for [Month]</strong> on the card once the full amount is ready to mark it as settled.</p>
+                </div>
+              )}
               <div className="pt-2 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Cancel</button>
                 <button type="submit" disabled={type === 'variable' && isOverBudget} className={`flex-1 py-3.5 rounded-xl font-bold text-sm text-white shadow-md transition-all ${type === 'variable' && isOverBudget ? 'bg-slate-300 dark:bg-slate-700 shadow-none cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-500 shadow-teal-500/20 dark:shadow-none'}`}>
