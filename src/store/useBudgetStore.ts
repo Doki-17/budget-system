@@ -57,6 +57,7 @@ export interface BudgetState {
   transferUnallocated: (toExpenseId: string, amount: string | number) => Promise<void>;
   distributeUnallocatedEqually: (excludedIds?: string[], forceIncludePaidFixed?: boolean) => Promise<void>;
   markAsPaid: (expenseId: string, monthKey: string) => Promise<void>;
+  markAllFixedAsPaid: (monthKey: string) => Promise<void>;
 
   addExpense: (expense: Expense) => Promise<void>;
   updateExpense: (id: string, updatedExpense: Partial<Expense>) => Promise<void>;
@@ -334,6 +335,31 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       supabase.from('wallets').update({ balance: newBalance, paid_months: newPaidMonths }).eq('id', expenseId),
       supabase.from('audit_logs').insert({ date: new Date().toLocaleDateString('en-PH'), type: 'EXPENSE', source: expenseData.name, amount: expenseData.amount, bank: expenseData.bank, description: `Quick Paid for ${new Date().toLocaleString('default', { month: 'short' })}` })
     ]);
+
+    await get().fetchData();
+  },
+
+  markAllFixedAsPaid: async (monthKey) => {
+    const { balances, categories } = get();
+    const fixedExpenses = categories.expenses.filter(e => e.type === 'fixed' && e.amount);
+    const monthName = new Date(monthKey + '-01').toLocaleString('default', { month: 'short' });
+
+    await Promise.all(
+      fixedExpenses.flatMap(exp => [
+        supabase.from('wallets').update({
+          balance: (balances[exp.id] ?? 0) - exp.amount!,
+          paid_months: [...(exp.paidMonths || []), monthKey]
+        }).eq('id', exp.id),
+        supabase.from('audit_logs').insert({
+          date: new Date().toLocaleDateString('en-PH'),
+          type: 'EXPENSE',
+          source: exp.name,
+          amount: exp.amount!,
+          bank: exp.bank,
+          description: `Paid for ${monthName}`
+        })
+      ])
+    );
 
     await get().fetchData();
   },

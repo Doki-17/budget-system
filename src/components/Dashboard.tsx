@@ -43,6 +43,9 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
             <p className={`text-3xl font-bold tracking-tight ${isNegative ? 'text-rose-500 dark:text-rose-400' : 'text-slate-800 dark:text-slate-100'}`}>
               {isNegative ? '-' : ''}₱{Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </p>
+            {isFixed && exp.amount !== undefined && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-medium">of ₱{exp.amount.toLocaleString()} target</p>
+            )}
           </div>
         </div>
 
@@ -77,19 +80,45 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
 }
 
 export default function Dashboard() {
-  const { balances, categories, auditLogs, addExpense, updateExpense, deleteExpense, addBank, markAsPaid } = useBudgetStore() as any;
+  const { balances, categories, auditLogs, addExpense, updateExpense, deleteExpense, addBank, markAsPaid, markAllFixedAsPaid } = useBudgetStore() as any;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Expense | null>(null);
 
   const [name, setName] = useState('');
   const [bank, setBank] = useState<BankName>(categories.banks?.[0] || 'GCash');
   const [type, setType] = useState<ExpenseType>('variable');
-const [priority, setPriority] = useState<PriorityLevel>('Medium');
+  const [priority, setPriority] = useState<PriorityLevel>('Medium');
   const [val, setVal] = useState<string>('');
 
   const totalBalance = Object.entries(balances).filter(([key]) => key !== 'unallocated').reduce((sum, [_, val]) => sum + Number(val), 0);
   const totalIncome = auditLogs.filter((l: any) => l.type === 'INCOME').reduce((s: number, l: any) => s + l.amount, 0);
   const totalExpenses = auditLogs.filter((l: any) => l.type === 'EXPENSE').reduce((s: number, l: any) => s + l.amount, 0);
+
+  // --- MANDATORIES ---
+  const fixedExpenses = categories.expenses.filter((e: any) => e.type === 'fixed');
+  const totalMandatories = fixedExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+
+  const mthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const todayKey = mthKey(new Date());
+  const prevDate = new Date(); prevDate.setMonth(prevDate.getMonth() - 1);
+  const prevKey = mthKey(prevDate);
+
+  const allPaidFor = (key: string) => fixedExpenses.length > 0 && fixedExpenses.every((e: any) => (e.paidMonths || []).includes(key));
+
+  const prevPaid = allPaidFor(prevKey);
+  const currPaid = allPaidFor(todayKey);
+  const targetKey = !prevPaid ? prevKey : todayKey;
+  const targetMonthName = new Date(targetKey + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
+  const allMandatoriesPaid = prevPaid && currPaid;
+
+  const insufficientEnvelopes = fixedExpenses.filter((e: any) => (balances[e.id] || 0) < (e.amount || 0));
+  const canPayMandatories = insufficientEnvelopes.length === 0 && fixedExpenses.length > 0;
+
+  const handlePayAllMandatories = async () => {
+    if (!canPayMandatories || allMandatoriesPaid) return;
+    if (!window.confirm(`Pay all fixed envelopes for ${targetMonthName}? Total: ₱${totalMandatories.toLocaleString()}`)) return;
+    await markAllFixedAsPaid(targetKey);
+  };
 
   const totalAllocatedPercentage = categories.expenses.filter((e: any) => e.type === 'variable').reduce((sum: number, curr: any) => sum + (curr.percentage || 0), 0);
   const currentItemPercentage = editItem?.type === 'variable' ? (editItem.percentage || 0) : 0;
@@ -144,6 +173,44 @@ const [priority, setPriority] = useState<PriorityLevel>('Medium');
           <p className="text-3xl font-bold mt-1.5">₱{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
         </div>
       </div>
+
+      {fixedExpenses.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-sm gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Mandatories</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1.5 tracking-tight">₱{totalMandatories.toLocaleString()}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{fixedExpenses.length} fixed envelope{fixedExpenses.length !== 1 ? 's' : ''}</p>
+          </div>
+
+          <div className="relative group/mandatories">
+            {allMandatoriesPaid ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 px-4 py-2.5 rounded-xl">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                All paid for {new Date(todayKey + '-01').toLocaleString('default', { month: 'long' })}
+              </span>
+            ) : (
+              <button
+                onClick={handlePayAllMandatories}
+                disabled={!canPayMandatories}
+                className="text-sm font-bold text-white bg-teal-600 hover:bg-teal-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed px-5 py-2.5 rounded-xl shadow-sm shadow-teal-500/20 dark:shadow-none transition-all"
+              >
+                Pay {targetMonthName}
+              </button>
+            )}
+
+            {!canPayMandatories && !allMandatoriesPaid && (
+              <div className="hidden group-hover/mandatories:block absolute bottom-full right-0 mb-2 w-56 bg-slate-800 dark:bg-slate-900 text-white text-[10px] rounded-xl p-3 z-10 shadow-lg border border-slate-700">
+                <p className="font-bold text-slate-200 mb-1.5">Still needs funding:</p>
+                {insufficientEnvelopes.map((e: any) => (
+                  <p key={e.id} className="text-slate-400 py-0.5">
+                    • {e.name}: <span className="text-rose-400">₱{((e.amount || 0) - (balances[e.id] || 0)).toLocaleString()} short</span>
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {(balances.unallocated || 0) > 0 && (
         <div className="bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/40 dark:to-emerald-950/40 border border-teal-100 dark:border-teal-900/50 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-sm gap-4">
