@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useBudgetStore, type AuditLog } from '../store/useBudgetStore';
 
+type FilterType = 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
+
 function BreakdownDetails({ log }: { log: AuditLog }) {
   const [open, setOpen] = useState(false);
   if (!log.breakdown?.length) return null;
@@ -68,40 +70,76 @@ function LogRow({ log }: { log: AuditLog }) {
 
 export default function History() {
   const { auditLogs } = useBudgetStore();
-  const incomeCount = auditLogs.filter(l => l.type === 'INCOME').length;
-  const expenseCount = auditLogs.filter(l => l.type === 'EXPENSE').length;
-
-  // PAGINATION LOGIC
+  const [filter, setFilter] = useState<FilterType>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-  const totalPages = Math.ceil(auditLogs.length / itemsPerPage) || 1;
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentLogs = auditLogs.slice(startIndex, startIndex + itemsPerPage);
+  const counts = {
+    ALL: auditLogs.length,
+    INCOME: auditLogs.filter(l => l.type === 'INCOME').length,
+    EXPENSE: auditLogs.filter(l => l.type === 'EXPENSE').length,
+    TRANSFER: auditLogs.filter(l => l.type === 'TRANSFER').length,
+  };
 
-  const handleNext = () => { if (currentPage < totalPages) setCurrentPage(p => p + 1); };
-  const handlePrev = () => { if (currentPage > 1) setCurrentPage(p => p - 1); };
+  const filteredLogs = filter === 'ALL' ? auditLogs : auditLogs.filter(l => l.type === filter);
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage) || 1;
+  const currentLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleFilterChange = (f: FilterType) => {
+    setFilter(f);
+    setCurrentPage(1);
+  };
+
+  const filterButtons: { key: FilterType; label: string; active: string; inactive: string }[] = [
+    {
+      key: 'ALL',
+      label: `All (${counts.ALL})`,
+      active: 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-800 dark:border-slate-100',
+      inactive: 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
+    },
+    {
+      key: 'INCOME',
+      label: `Income (${counts.INCOME})`,
+      active: 'bg-teal-600 text-white border-teal-600',
+      inactive: 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/40',
+    },
+    {
+      key: 'EXPENSE',
+      label: `Expense (${counts.EXPENSE})`,
+      active: 'bg-rose-600 text-white border-rose-600',
+      inactive: 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40',
+    },
+    {
+      key: 'TRANSFER',
+      label: `Transfer (${counts.TRANSFER})`,
+      active: 'bg-indigo-600 text-white border-indigo-600',
+      inactive: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40',
+    },
+  ];
 
   return (
     <div className="space-y-6">
       {auditLogs.length > 0 && (
-        <div className="flex gap-3 flex-wrap">
-          <div className="bg-teal-50 dark:bg-teal-900/30 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-400 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm">
-            {incomeCount} Income Records
-          </div>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm">
-            {expenseCount} Expense Records
-          </div>
+        <div className="flex gap-2 flex-wrap">
+          {filterButtons.map(btn => (
+            <button
+              key={btn.key}
+              onClick={() => handleFilterChange(btn.key)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm border transition-all ${filter === btn.key ? btn.active : btn.inactive}`}
+            >
+              {btn.label}
+            </button>
+          ))}
         </div>
       )}
 
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60 overflow-hidden">
-        {auditLogs.length === 0 ? (
+        {filteredLogs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400 dark:text-slate-500 gap-3">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 stroke-slate-300 dark:stroke-slate-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-             </svg>
-            <p className="font-semibold text-sm">No activity recorded yet.</p>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 stroke-slate-300 dark:stroke-slate-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p className="font-semibold text-sm">{auditLogs.length === 0 ? 'No activity recorded yet.' : `No ${filter.toLowerCase()} records found.`}</p>
           </div>
         ) : (
           <>
@@ -111,22 +149,19 @@ export default function History() {
               ))}
             </div>
 
-            {/* PAGINATION CONTROLS */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
               <button
-                onClick={handlePrev}
+                onClick={() => setCurrentPage(p => p - 1)}
                 disabled={currentPage === 1}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm border border-slate-200 dark:border-slate-700/60 disabled:opacity-40 disabled:cursor-not-allowed bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               >
                 Previous
               </button>
-
               <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Page {currentPage} of {totalPages}
               </span>
-
               <button
-                onClick={handleNext}
+                onClick={() => setCurrentPage(p => p + 1)}
                 disabled={currentPage === totalPages}
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm border border-slate-200 dark:border-slate-700/60 disabled:opacity-40 disabled:cursor-not-allowed bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               >
