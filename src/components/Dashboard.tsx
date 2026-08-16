@@ -11,8 +11,6 @@ interface StatCardProps {
 
 function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps) {
   const isNegative = balance < 0;
-
-  // Date tracking for fixed monthly bills
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const currentMonthName = new Date().toLocaleString('default', { month: 'short' });
 
@@ -49,11 +47,9 @@ function StatCard({ exp, balance, onEdit, onDelete, onMarkPaid }: StatCardProps)
           </div>
         </div>
 
-        {/* Action / Status Row */}
         <div className="mt-auto flex items-center justify-between pt-5 border-t border-slate-100 dark:border-slate-700/60">
           <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">{exp.bank}</span>
 
-          {/* DYNAMIC FOOTER BASED ON TYPE */}
           {exp.type === 'variable' && exp.percentage !== undefined ? (
             <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2.5 py-1 rounded-md">Gets {exp.percentage}%</span>
           ) : isFixed ? (
@@ -93,8 +89,31 @@ export default function Dashboard() {
   const [val, setVal] = useState<string>('');
 
   const totalBalance = Object.entries(balances).filter(([key]) => key !== 'unallocated').reduce((sum, [_, val]) => sum + Number(val), 0);
-  const totalIncome = auditLogs.filter((l: any) => l.type === 'INCOME').reduce((s: number, l: any) => s + l.amount, 0);
-  const totalExpenses = auditLogs.filter((l: any) => l.type === 'EXPENSE').reduce((s: number, l: any) => s + l.amount, 0);
+
+  // --- MONTHLY RESET LOGIC ---
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+  const prevMonth = prevMonthDate.getMonth();
+  const prevYear = prevMonthDate.getFullYear();
+
+  const currentMonthLogs = auditLogs.filter((l: any) => {
+    const d = new Date(l.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  const prevMonthLogs = auditLogs.filter((l: any) => {
+    const d = new Date(l.date);
+    return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+  });
+
+  const currIncome = currentMonthLogs.filter((l: any) => l.type === 'INCOME').reduce((s: number, l: any) => s + l.amount, 0);
+  const currExpenses = currentMonthLogs.filter((l: any) => l.type === 'EXPENSE').reduce((s: number, l: any) => s + l.amount, 0);
+
+  const prevIncome = prevMonthLogs.filter((l: any) => l.type === 'INCOME').reduce((s: number, l: any) => s + l.amount, 0);
+  const prevExpenses = prevMonthLogs.filter((l: any) => l.type === 'EXPENSE').reduce((s: number, l: any) => s + l.amount, 0);
 
   // --- MANDATORIES ---
   const fixedExpenses = categories.expenses.filter((e: any) => e.type === 'fixed');
@@ -163,16 +182,18 @@ export default function Dashboard() {
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-teal-600 dark:bg-emerald-900/50 text-white rounded-3xl p-6 shadow-md shadow-teal-600/10 dark:shadow-none border-b-4 border-teal-700 dark:border-emerald-800">
-          <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">Total Savings</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">Total Savings (All-time)</p>
           <p className="text-3xl font-bold mt-1.5">₱{(totalBalance + (balances.unallocated || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
         </div>
         <div className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-100 rounded-3xl p-6 shadow-sm border border-indigo-100 dark:border-indigo-900/50">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400">Total Incoming</p>
-          <p className="text-3xl font-bold mt-1.5">₱{totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400">This Month's Incoming</p>
+          <p className="text-3xl font-bold mt-1.5">₱{currIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          <p className="text-[10px] font-bold mt-2 text-indigo-500 dark:text-indigo-400 bg-indigo-100/50 dark:bg-indigo-900/50 inline-block px-2 py-1 rounded-md">Last month: ₱{prevIncome.toLocaleString()}</p>
         </div>
         <div className="bg-rose-50 dark:bg-rose-950/30 text-rose-900 dark:text-rose-100 rounded-3xl p-6 shadow-sm border border-rose-100 dark:border-rose-900/50">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Total Outgoing</p>
-          <p className="text-3xl font-bold mt-1.5">₱{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">This Month's Outgoing</p>
+          <p className="text-3xl font-bold mt-1.5">₱{currExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          <p className="text-[10px] font-bold mt-2 text-rose-500 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-900/50 inline-block px-2 py-1 rounded-md">Last month: ₱{prevExpenses.toLocaleString()}</p>
         </div>
       </div>
 
@@ -225,7 +246,7 @@ export default function Dashboard() {
           </div>
           <div className="text-left sm:text-right bg-white dark:bg-slate-800/80 px-4 py-3 rounded-xl shadow-sm border border-teal-100 dark:border-teal-900/60">
             <p className="text-sm font-bold text-slate-700 dark:text-slate-200">You have extra money!</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Go to 'Add Activity' &gt; 'Move'</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Go to 'Transfer' to distribute it</p>
           </div>
         </div>
       )}
